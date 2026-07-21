@@ -20,7 +20,7 @@ DELETED_UID="$(kubectl get pod "${DELETED_POD}" \
   --output jsonpath='{.metadata.uid}')"
 
 echo "Deleting pod ${DELETED_POD} (${DELETED_UID}) to simulate a failure."
-kubectl delete pod "${DELETED_POD}" --namespace "${NAMESPACE}" --wait=false
+kubectl delete pod "${DELETED_POD}" --namespace "${NAMESPACE}" --wait=true --timeout=120s
 
 kubectl rollout status deployment/${DEPLOYMENT} \
   --namespace "${NAMESPACE}" \
