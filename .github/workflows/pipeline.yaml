@@ -122,21 +122,61 @@ jobs:
           curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8080/health/ready
 
       - name: Demonstrate self-healing
+        shell: bash
         run: |
-          OLD_POD="$(kubectl get pods -l app=secure-pipeline -o jsonpath='{.items[0].metadata.name}')"
-          kubectl delete pod "$OLD_POD"
+          set -euo pipefail
+
+          echo "Pods before deletion:"
+          kubectl get pods -l app=secure-pipeline
+
+          OLD_POD="$(kubectl get pods             -l app=secure-pipeline             -o jsonpath='{.items[0].metadata.name}')"
+
+          echo "Deleting Pod: $OLD_POD"
+          kubectl delete pod "$OLD_POD" --wait=false
 
           for ATTEMPT in $(seq 1 60); do
-            READY_COUNT="$(kubectl get pods -l app=secure-pipeline -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\\n"}{end}' 2>/dev/null | grep -c true || true)"
-            if [ "$READY_COUNT" -eq 2 ]; then
-              echo "Kubernetes restored two ready replicas."
-              break
+            CURRENT_PODS="$(kubectl get pods               -l app=secure-pipeline               -o jsonpath='{range .items[*]}{.metadata.name}{"\\n"}{end}')"
+
+            TOTAL_COUNT="$(
+              printf '%s\n' "$CURRENT_PODS" |
+              sed '/^$/d' |
+              wc -l |
+              tr -d ' '
+            )"
+
+            READY_COUNT="$(
+              kubectl get pods                 -l app=secure-pipeline                 -o jsonpath='{range .items[*]}{range .status.containerStatuses[*]}{.ready}{"\\n"}{end}{end}' |
+              grep -c '^true$' || true
+            )"
+
+            echo "Attempt $ATTEMPT: $READY_COUNT of $TOTAL_COUNT Pods are ready"
+            printf '%s\n' "$CURRENT_PODS"
+
+            OLD_POD_STILL_EXISTS=false
+
+            if printf '%s\n' "$CURRENT_PODS" | grep -qx "$OLD_POD"; then
+              OLD_POD_STILL_EXISTS=true
             fi
-            sleep 2
+
+            if [ "$TOTAL_COUNT" -eq 2 ] &&
+               [ "$READY_COUNT" -eq 2 ] &&
+               [ "$OLD_POD_STILL_EXISTS" = false ]; then
+              echo
+              echo "Pods after recovery:"
+              kubectl get pods -l app=secure-pipeline
+              echo
+              echo "Self-healing verified: Kubernetes replaced the deleted Pod and restored two ready replicas."
+              exit 0
+            fi
+
+            sleep 3
           done
 
-          test "$READY_COUNT" -eq 2
-          kubectl get pods -l app=secure-pipeline
+          echo "Self-healing verification timed out."
+          kubectl get pods -l app=secure-pipeline -o wide
+          kubectl describe deployment secure-pipeline
+          kubectl get events --sort-by=.lastTimestamp | tail -50
+          exit 1
 
       - name: Demonstrate zero-downtime rolling update
         run: |
