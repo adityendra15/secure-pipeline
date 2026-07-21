@@ -1,7 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: secure-pipeline
+  name: secure-pipeline-app
+  namespace: secure-pipeline
   labels:
     app: secure-pipeline
 spec:
@@ -19,7 +20,8 @@ spec:
       labels:
         app: secure-pipeline
     spec:
-      terminationGracePeriodSeconds: 15
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -28,7 +30,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: website
+        - name: secure-pipeline-app
           image: IMAGE_PLACEHOLDER
           imagePullPolicy: IfNotPresent
           ports:
@@ -36,7 +38,7 @@ spec:
               containerPort: 8080
           env:
             - name: APP_VERSION
-              value: "VERSION_PLACEHOLDER"
+              value: INITIAL_VERSION_PLACEHOLDER
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -49,7 +51,13 @@ spec:
               memory: 64Mi
             limits:
               cpu: 250m
-              memory: 256Mi
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            failureThreshold: 12
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health/live
@@ -69,7 +77,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "sleep 5"]
+                command: ["sh", "-c", "sleep 5"]
           volumeMounts:
             - name: temporary-files
               mountPath: /tmp

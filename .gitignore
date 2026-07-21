@@ -1,7 +1,10 @@
-.venv/
 __pycache__/
+*.py[cod]
 .pytest_cache/
-*.pyc
-.DS_Store
-reports/
-rendered-*.yaml
+.venv/
+venv/
+.env
+sbom*.json
+trivy*.json
+traffic-check.log
+rendered-deployment.yaml

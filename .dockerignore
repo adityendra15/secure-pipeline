@@ -1,9 +1,12 @@
 .git
 .github
-.venv
 __pycache__
 .pytest_cache
-tests
-reports
-*.md
-.DS_Store
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+sbom*.json
+trivy*.json
+README.md
