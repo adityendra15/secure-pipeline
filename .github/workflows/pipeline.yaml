@@ -129,42 +129,24 @@ jobs:
           echo "Pods before deletion:"
           kubectl get pods -l app=secure-pipeline
 
-          OLD_POD="$(kubectl get pods             -l app=secure-pipeline             -o jsonpath='{.items[0].metadata.name}')"
-
+          OLD_POD="$(kubectl get pods -l app=secure-pipeline -o jsonpath='{.items[0].metadata.name}')"
           echo "Deleting Pod: $OLD_POD"
           kubectl delete pod "$OLD_POD" --wait=false
 
-          for ATTEMPT in $(seq 1 60); do
-            CURRENT_PODS="$(kubectl get pods               -l app=secure-pipeline               -o jsonpath='{range .items[*]}{.metadata.name}{"\\n"}{end}')"
+          kubectl wait --for=delete "pod/$OLD_POD" --timeout=90s
 
-            TOTAL_COUNT="$(
-              printf '%s\n' "$CURRENT_PODS" |
-              sed '/^$/d' |
-              wc -l |
-              tr -d ' '
-            )"
+          for ATTEMPT in $(seq 1 40); do
+            READY_REPLICAS="$(kubectl get deployment secure-pipeline -o jsonpath='{.status.readyReplicas}')"
+            READY_REPLICAS="${READY_REPLICAS:-0}"
 
-            READY_COUNT="$(
-              kubectl get pods                 -l app=secure-pipeline                 -o jsonpath='{range .items[*]}{range .status.containerStatuses[*]}{.ready}{"\\n"}{end}{end}' |
-              grep -c '^true$' || true
-            )"
+            CURRENT_PODS="$(kubectl get pods -l app=secure-pipeline -o jsonpath='{range .items[*]}{.metadata.name}{"\\n"}{end}')"
 
-            echo "Attempt $ATTEMPT: $READY_COUNT of $TOTAL_COUNT Pods are ready"
+            echo "Attempt $ATTEMPT: Deployment reports $READY_REPLICAS ready replicas"
             printf '%s\n' "$CURRENT_PODS"
 
-            OLD_POD_STILL_EXISTS=false
-
-            if printf '%s\n' "$CURRENT_PODS" | grep -qx "$OLD_POD"; then
-              OLD_POD_STILL_EXISTS=true
-            fi
-
-            if [ "$TOTAL_COUNT" -eq 2 ] &&
-               [ "$READY_COUNT" -eq 2 ] &&
-               [ "$OLD_POD_STILL_EXISTS" = false ]; then
+            if [ "$READY_REPLICAS" -eq 2 ] && ! printf '%s\n' "$CURRENT_PODS" | grep -qx "$OLD_POD"; then
               echo
-              echo "Pods after recovery:"
               kubectl get pods -l app=secure-pipeline
-              echo
               echo "Self-healing verified: Kubernetes replaced the deleted Pod and restored two ready replicas."
               exit 0
             fi
@@ -173,9 +155,7 @@ jobs:
           done
 
           echo "Self-healing verification timed out."
-          kubectl get pods -l app=secure-pipeline -o wide
-          kubectl describe deployment secure-pipeline
-          kubectl get events --sort-by=.lastTimestamp | tail -50
+          kubectl get deployment,pods -l app=secure-pipeline -o wide
           exit 1
 
       - name: Demonstrate zero-downtime rolling update
