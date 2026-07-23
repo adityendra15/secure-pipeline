@@ -1,10 +1,4 @@
+.DS_Store
 __pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-venv/
-.env
-sbom*.json
-trivy*.json
-traffic-check.log
-rendered-deployment.yaml
+*.pyc
+sbom.cdx.json
