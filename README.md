@@ -1,5 +1,7 @@
 # Automated Secure Website Deployment Pipeline
 
+[![Automated Secure Website Deployment Pipeline](https://github.com/adityendra15/secure-pipeline/actions/workflows/pipeline.yml/badge.svg)](https://github.com/adityendra15/secure-pipeline/actions/workflows/pipeline.yml)
+
 A deliberately small beginner project that demonstrates a complete secure CI/CD flow:
 
 ```text
@@ -25,14 +27,13 @@ The website is intentionally tiny. The main learning goal is the pipeline, conta
 ## Folder structure
 
 ```text
-project1-secure-pipeline/
+secure-pipeline/
 ├── .github/workflows/pipeline.yml
 ├── k8s/deployment.yaml
 ├── k8s/service.yaml
 ├── .dockerignore
 ├── .gitignore
 ├── app.py
-├── CLAIM_MAP.md
 ├── Dockerfile
 └── README.md
 ```
@@ -141,11 +142,10 @@ kind delete cluster --name secure-pipeline
 
 ## Use the GitHub Actions pipeline
 
-1. Create a new GitHub repository.
-2. Copy this entire folder into that repository.
-3. Commit and push the files.
-4. Open the repository's **Actions** tab.
-5. Open the workflow named **Automated Secure Website Deployment Pipeline**.
+1. Fork or clone this repository.
+2. Commit and push a code change, or use the manual workflow trigger.
+3. Open the repository's **Actions** tab.
+4. Open the workflow named **Automated Secure Website Deployment Pipeline**.
 
 No custom secret is required. GitHub supplies `GITHUB_TOKEN`, and the workflow grants it permission to push the image to GitHub Container Registry.
 
